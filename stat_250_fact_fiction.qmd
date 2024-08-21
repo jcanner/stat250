@@ -1,0 +1,735 @@
+---
+title: "Fact and Fiction about STAT 250"
+format: 
+  revealjs:
+    theme: moon
+    slide-number: c/t
+    show-slide-number: all
+execute: 
+  echo: false
+  warning: false
+---
+
+```{r}
+#| label: packages
+library(tidyverse)
+```
+
+```{r}
+#| label: read-data
+stat250 <- read_csv("data_stat250/stat250_ay2324_deid.csv")
+iar_250 <- read_csv("data_stat250/iar250_history.csv")
+```
+
+
+```{r}
+#| label: data-cleaning
+stat250_update <- stat250 |>
+  filter(!crse_grade_off %in% c("IC", "AU", "I")) |>
+  mutate(stat250_grade_group = case_when(
+    crse_grade_off %in% c(
+      "A", "A-", "A+", "B",
+      "B+", "B-", "C", "C+", "C-", "CR"
+    ) ~ "Passed STAT 250",
+    crse_grade_off %in% c("D", "D+", "D-", "F", "NC") ~ "Did Not Pass STAT 250",
+    crse_grade_off %in% c("W", "WU") ~ "Did Not Complete STAT 250"
+  )) |>
+  mutate(stat250_support_grade_group = case_when(
+    crse_grade_off_support %in% c(
+      "A", "A-", "A+", "B",
+      "B+", "B-", "C", "C+", "C-", "CR"
+    ) ~ "Passed Support",
+    crse_grade_off_support %in% c("D", "D+", "D-", "F") ~ "Did Not Pass Support",
+    crse_grade_off_support %in% c("W", "I", "IC", "WU") ~ "Did Not Complete Support"
+  ))
+```
+
+
+
+## First Facts
+
+- Your instructor wants you to be successful!  
+- There is at least 15 hours of supplemental support available each week.  
+- Your instructor is one of those resources (e.g. regular office hours, emails, appointments)
+
+## Myth 1: Most students fail STAT 250
+
+**Fact: 75% of students pass STAT 250 on their first attempt, with 70% of students passing each semester on average.**  
+
+```{r}
+#| label: pass-rate-graph
+#| fig-align: center
+iar_250 |>
+  filter(acad_year %in% c(2022:2024)) |>
+  filter(!crse_grade_off %in% c("IC", "AU", "I")) |>
+  mutate(term_descr = fct_reorder(term_descr, strm)) |>
+  mutate(stat250_grade_group = case_when(
+    crse_grade_off %in% c(
+      "A", "A-", "A+", "B",
+      "B+", "B-", "C", "C+", "C-", "CR"
+    ) ~ "Passed STAT 250",
+    crse_grade_off %in% c("D", "D+", "D-", "F", "NC") ~ "Did Not Pass STAT 250",
+    crse_grade_off %in% c("W", "WU") ~ "Did Not Complete STAT 250"
+  )) |>
+  filter(stat250_grade_group != "Did Not Complete STAT 250") |>
+  count(stat250_grade_group, acad_year) |>
+  group_by(acad_year) |>
+  mutate(prop_pass = n / sum(n)) |>
+  ungroup() |>
+  ggplot(aes(x = prop_pass, y = fct_rev(factor(acad_year)), fill = stat250_grade_group)) +
+  geom_col(position = "stack") +
+  geom_vline(xintercept = 0.70) +
+  theme_light() +
+  theme(legend.position = "bottom") +
+  scale_fill_viridis_d() +
+  labs(
+    x = "Proportion of First-Time STAT 250 Students",
+    y = "Academic Year",
+    fill = "Outcome"
+  )
+```
+
+::: {style="font-size:50%"}
+
+For comparison,  
+
+- BIO 311 Genetics has a 56% pass rate  
+- Anatomy and Physiology has a 71% pass rate  
+- CHEM 111 Chemistry II has a 71% pass rate
+
+:::
+
+## Myth 2: Half the students are repeating the course each semester
+
+**Fact: Each semester, on average, 80% of students are taking STAT 250 for the first time**
+
+```{r}
+#| label: first-time-graph
+#| fig-align: center
+iar_250 |>
+  filter(acad_year %in% c(2022:2024)) |>
+  filter(!crse_grade_off %in% c("IC", "AU", "I")) |>
+  mutate(term_descr = fct_reorder(term_descr, strm)) |>
+  mutate(stat250_grade_group = case_when(
+    crse_grade_off %in% c(
+      "A", "A-", "A+", "B",
+      "B+", "B-", "C", "C+", "C-", "CR"
+    ) ~ "Passed STAT 250",
+    crse_grade_off %in% c("D", "D+", "D-", "F", "NC") ~ "Did Not Pass STAT 250",
+    crse_grade_off %in% c("W", "WU") ~ "Did Not Complete STAT 250"
+  )) |>
+  count(term_descr, attempt_number) |>
+  group_by(term_descr) |>
+  mutate(prop_attempt = n / sum(n)) |>
+  ungroup() |>
+  ggplot(aes(x = prop_attempt, y = fct_rev(term_descr), fill = fct_rev(factor(attempt_number)))) +
+  geom_col(position = "stack") +
+  theme_light() +
+  theme(legend.position = "bottom") +
+  scale_fill_viridis_d() +
+  labs(
+    title = "On average, 80% of students in STAT 250 are on their first attempt",
+    x = "Proportion of Students Per Attempt",
+    y = "Semester",
+    fill = "Attempt"
+  )
+```
+
+
+
+
+
+## Myth 3: One Instructor is Harder than the Other
+
+**Fact: For students on their first attempt, the pass rates are consistent across instructors**
+
+```{r}
+#| label: instructor-comparison-graph
+#| fig-align: center
+iar_250 |>
+  filter(acad_year %in% c(2020:2024)) |>
+  filter(!crse_grade_off %in% c("IC", "AU", "I")) |>
+  filter(attempt_number == 1) |>
+  mutate(term_descr = fct_reorder(term_descr, strm)) |>
+  mutate(stat250_grade_group = case_when(
+    crse_grade_off %in% c(
+      "A", "A-", "A+", "B",
+      "B+", "B-", "C", "C+", "C-", "CR"
+    ) ~ "Passed STAT 250",
+    crse_grade_off %in% c("D", "D+", "D-", "F", "NC") ~ "Did Not Pass STAT 250",
+    crse_grade_off %in% c("W", "WU") ~ "Did Not Complete STAT 250"
+  )) |>
+  filter(stat250_grade_group != "Did Not Complete STAT 250") |>
+  count(pri_instr_emplid, stat250_grade_group) |>
+  group_by(pri_instr_emplid) |>
+  mutate(prop_pass = n / sum(n)) |>
+  ungroup() |>
+  ggplot(aes(x = prop_pass, y = pri_instr_emplid, fill = stat250_grade_group)) +
+  geom_col(position = "stack") +
+  theme_light() +
+  theme(legend.position = "bottom") +
+  # facet_wrap(~term_descr) + #add term_desrc to count and group_by to add in
+  # geom_vline(xintercept = 0.70) +
+  scale_fill_viridis_d() +
+  labs(
+    x = "Proportion of First-Time STAT 250 Students",
+    y = "Instructor",
+    fill = "Outcome"
+  ) +
+  scale_y_discrete(labels = c("E", "D", "C", "B", "A"))
+```
+
+## Myth 4: STAT 250 has a higher workload than other classes
+
+::: {.r-fit-text}
+
+- Remember that STAT 250 is a 4-unit course.  
+- 8-12 hours of work outside the classroom is normal for a 4-unit college-level class  
+- Outside work includes both assignments for the class (e.g. preps, labs) and review/study time  
+
+:::
+
+## Myth 4: STAT 250 has a higher workload than other classes
+
+**Fact: Lab Assignments should take you on average 5 hours each assignment**  
+```{r}
+#| label: workload-labs-graph
+#| fig-align: center
+pass_labs <- stat250_update |>
+  mutate(time_labs = fct_relevel(time_labs, "10+ hours avg per week", after = Inf)) |>
+  drop_na(time_labs) |>
+  count(time_labs, stat250_grade_group) |>
+  group_by(time_labs) |> 
+  mutate(prop_pass_labs = round(n/sum(n)*100, 0),
+         group_total = sum(n)) |> 
+  ungroup() |> 
+  filter(stat250_grade_group == "Passed STAT 250")
+
+stat250_update |>
+  mutate(time_labs = fct_relevel(time_labs, "10+ hours avg per week", after = Inf)) |>
+  drop_na(time_labs) |>
+  count(time_labs) |>
+  ggplot(aes(
+    x = n, y = time_labs,
+    fill = time_labs
+  )) +
+  geom_col() +
+  geom_text(data = pass_labs, 
+            aes(label = paste0(prop_pass_labs, "% Passed"),
+                x = 6)) +
+  guides(fill = "none") +
+  scale_fill_viridis_d(begin = 0.15) +
+  theme_light() +
+  labs(
+    x = "Number of STAT 250 Students in AY 2023-2024",
+    y = "Reported Time Spent Each Week",
+    title = "Reported Time Spent Each Week On \n Lab Assignments"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+
+
+## Myth 4: STAT 250 has a higher workload than other classes
+
+::: {.r-fit-text}
+
+If you are spending more time than 5 hours on the labs, especially after the first 3 weeks, please start them early and seek help often!  
+
+A few tips:  
+
+- Start labs at the Friday or Monday Cafe to get going  
+- Try to work on labs one hour each day  
+- Use CLC Drop-In Hours, Instructor Office Hours, and the Wednesday Cafe to ask questions long the way  
+- If an error message is holding you up
+    - Take a break and go for a walk so you can look at it with fresh eyes  
+    - Check for common issues (spelling, capitalization, missing commas, missing parentheses)  
+    - Check you loaded the correct packages and imported the data  
+    - Email your instructor with a screen shot of code and the error   
+    
+:::
+
+
+
+
+
+
+## Myth 4: STAT 250 has a higher workload than other classes
+
+::: {.r-fit-text}
+**Fact: Checkpoints preparation includes practice problems and review, but they are meant to be low-stakes assessments**  
+
+1-2 hours a week on average (maybe 2-3 if you need more practice) is a good target for Checkpoint preparation.  
+
+:::
+
+```{r}
+#| label: workload-checkpoints-graph
+#| fig-align: center
+pass_checkpoints <- stat250_update |>
+  filter(time_checkpoints != "I did not do this assignment most weeks") |> 
+  mutate(time_checkpoints = fct_relevel(time_checkpoints, "10+ hours avg per week", after = 8),
+         stat250_grade_group = as.factor(stat250_grade_group)) |>
+  drop_na(time_checkpoints) |>
+  count(time_checkpoints, stat250_grade_group, .drop = FALSE) |>
+  group_by(time_checkpoints) |> 
+  mutate(prop_pass_checkpoints = round(n/sum(n)*100, 0),
+         group_total = sum(n)) |> 
+  ungroup() |> 
+  filter(stat250_grade_group == "Passed STAT 250")
+
+stat250_update |>
+  filter(time_checkpoints != "I did not do this assignment most weeks") |>
+  mutate(time_checkpoints = fct_relevel(time_checkpoints, "10+ hours avg per week", after = 8)) |>
+  drop_na(time_checkpoints) |>
+  count(time_checkpoints) |>
+  ggplot(aes(
+    x = n, y = time_checkpoints,
+    fill = time_checkpoints
+  )) +
+  geom_col() +
+  geom_text(data = pass_checkpoints, 
+            aes(label = paste0(prop_pass_checkpoints, "% Passed"),
+                x = 13)) +
+  guides(fill = "none") +
+  scale_fill_viridis_d(begin = 0.15) +
+  theme_light() +
+  labs(
+    x = "Number of STAT 250 Students in AY 2023-2024",
+    y = "Reported Time Spent Each Week",
+    title = "Reported Time Spent Each Week On \n Checkpoint Preparation"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+## Myth 4: STAT 250 has a higher workload than other classes {.scrollable}
+
+::: {.r-fit-text}
+
+**Fact: Each Prep Assignment ranges in time between 20-60 minutes for the videos plus your time on the reflection questions**  
+
+Reflection after you watch the videos before class and reflection after class to update your understanding are both important aspects of the reflection preparation
+
+:::
+
+```{r}
+#| label: workload-preps-fa23
+#| fig-align: center
+pass_preps_fall2023 <- stat250_update |>
+  filter(time_preps != "I did not do this assignment most weeks") |> 
+  mutate(time_preps = fct_relevel(time_preps, "10+ hours avg per week", after = Inf),
+         stat250_grade_group = as.factor(stat250_grade_group)) |>
+  drop_na(time_preps) |>
+  count(time_preps, stat250_grade_group, .drop = FALSE) |>
+  group_by(time_preps) |> 
+  mutate(prop_pass_prep = round(n/sum(n)*100, 0),
+         group_total = sum(n)) |> 
+  ungroup() |> 
+  filter(stat250_grade_group == "Passed STAT 250")
+
+
+time_preps_fall2023 <- stat250_update |>
+  mutate(time_preps = fct_relevel(time_preps, "10+ hours avg per week", after = Inf)) |>
+  drop_na(time_preps) |>
+  count(time_preps) |>
+  ggplot(aes(
+    x = n, y = time_preps,
+    fill = time_preps
+  )) +
+  geom_col() +
+  geom_text(data = pass_preps_fall2023, 
+            aes(label = paste0(prop_pass_prep, "% Passed"),
+                x = 7)) +
+  guides(fill = "none") +
+  scale_fill_viridis_d(begin = 0.2) +
+  theme_light() +
+  labs(
+    x = "Number of STAT 250 Students in Fall 2023",
+    y = "Reported Time Spent Each Week",
+    title = "Reported Time Spent Each Week On \n Preparation Assignments"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+time_preps_fall2023
+```
+
+
+
+```{r}
+#| label: workload-prep-video-sp24
+#| fig-align: center
+pass_preps_sp24_vids <- stat250_update |>
+  mutate(stat250_grade_group = as.factor(stat250_grade_group)) |>
+  drop_na(time_preps_video) |>
+  count(time_preps_video, stat250_grade_group, .drop = FALSE) |>
+  group_by(time_preps_video) |> 
+  mutate(prop_pass_prep_vid = round(n/sum(n)*100, 0),
+         group_total = sum(n)) |> 
+  ungroup() |> 
+  filter(stat250_grade_group == "Passed STAT 250")
+
+
+stat250_update |>
+  drop_na(time_preps_video) |>
+  count(time_preps_video) |>
+  ggplot(aes(
+    x = n, y = time_preps_video,
+    fill = time_preps_video
+  )) +
+  geom_col() +
+  geom_text(data = pass_preps_sp24_vids, 
+            aes(label = paste0(prop_pass_prep_vid, "% Passed"),
+                x = 7)) +
+  guides(fill = "none") +
+  scale_fill_viridis_d(begin = 0.2) +
+  theme_light() +
+  labs(
+    x = "Number of STAT 250 Students in Spring 2024",
+    y = "Reported Time Spent Each Week",
+    title = "Reported Time Spent Each Week On \n Preparation Videos"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+#| label: workload-prep-reflect-sp24
+#| fig-align: center
+pass_preps_sp24_reflect <- stat250_update |>
+  mutate(stat250_grade_group = as.factor(stat250_grade_group)) |>
+  drop_na(time_preps_reflections) |>
+  count(time_preps_reflections, stat250_grade_group, .drop = FALSE) |>
+  group_by(time_preps_reflections) |> 
+  mutate(prop_pass_prep_ref = round(n/sum(n)*100, 0),
+         group_total = sum(n)) |> 
+  ungroup() |> 
+  filter(stat250_grade_group == "Passed STAT 250")
+
+
+stat250_update |>
+  drop_na(time_preps_reflections) |>
+  count(time_preps_reflections) |>
+  ggplot(aes(
+    x = n, y = time_preps_reflections,
+    fill = time_preps_reflections
+  )) +
+  geom_col() +
+  geom_text(data = pass_preps_sp24_reflect, 
+            aes(label = paste0(prop_pass_prep_ref, "% Passed"),
+                x = 7)) +
+  guides(fill = "none") +
+  scale_fill_viridis_d(begin = 0.2) +
+  theme_light() +
+  labs(
+    x = "Number of STAT 250 Students in Spring 2024",
+    y = "Reported Time Spent Each Week",
+    title = "Reported Time Spent Each Week On \n Preparation Reflections"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+
+## Myth 4: STAT 250 has a higher workload than other classes 
+
+::: {.r-fit-text}
+For most students, the average weekly workload (weighted by pass rate) was  
+
+- Labs: 5-6 hours a week
+- Checkpoints: 1-2 hours a week  
+- Prep Videos: 1-2 hours a week  
+- Prep Reflections: 2-3 hours a week 
+
+Total: 10-13 hours a week
+
+:::
+
+
+
+
+## Hard Truth: Students who are repeating are more likely not to pass
+
+```{r}
+#| label: pass-rate-repeats-graph
+#| fig-align: center
+iar_250 |>
+  filter(acad_year %in% c(2022:2024)) |>
+  filter(!crse_grade_off %in% c("IC", "AU", "I")) |>
+  mutate(term_descr = fct_reorder(term_descr, strm)) |>
+  mutate(stat250_grade_group = case_when(
+    crse_grade_off %in% c(
+      "A", "A-", "A+", "B",
+      "B+", "B-", "C", "C+", "C-", "CR"
+    ) ~ "Passed STAT 250",
+    crse_grade_off %in% c("D", "D+", "D-", "F", "NC") ~ "Did Not Pass STAT 250",
+    crse_grade_off %in% c("W", "WU") ~ "Did Not Complete STAT 250"
+  )) |>
+  mutate(repeater = ifelse(attempt_number == 1, "First-Time", "Repeating")) |>
+  count(stat250_grade_group, repeater) |>
+  group_by(repeater) |>
+  mutate(prop_passed = n / sum(n)) |>
+  ungroup() |>
+  ggplot(aes(x = prop_passed, y = fct_rev(repeater), fill = stat250_grade_group, label = n)) +
+  geom_col(position = "stack") +
+  theme_light() +
+  theme(legend.position = "bottom") +
+  scale_fill_viridis_d() +
+  labs(
+    title = "Students who repeat are more likely not to pass",
+    x = "Proportion of Students Per Outcome",
+    y = "Student Attempt at STAT 250",
+    fill = "Outcome"
+  )
+```
+
+
+## Hard Truth: Students who worked more than 10 hours a week are more likely not to pass
+
+```{r}
+#| label: avg-work-hours
+#| eval: false
+#| fig-align: center
+stat250_update |>
+  mutate(grade_group = case_when(
+    crse_grade_off %in% c("A", "A-", "A+") ~ "A",
+    crse_grade_off %in% c("B", "B-", "B+") ~ "B",
+    crse_grade_off %in% c("C", "C-", "C+") ~ "C",
+    crse_grade_off %in% c("D", "D-", "D+", "NC", "F") ~ "Did not Pass",
+    crse_grade_off %in% c("W", "WU", "I", "IC") ~ "W/WU",
+    crse_grade_off == "CR" ~ "CR"
+  )) |>
+  filter(
+    grade_group != "W/WU",
+    term_descr == "2024 Spring"
+  ) |>
+  filter(attempt_number == 1) |>
+  group_by(grade_group) |>
+  summarize(avg_work = mean(work_hours, na.rm = TRUE))
+```
+
+
+```{r}
+#| label: pass-rate-work-hours-graph
+#| fig-align: center
+stat250_update |>
+  mutate(grade_group = case_when(
+    crse_grade_off %in% c("A", "A-", "A+") ~ "A",
+    crse_grade_off %in% c("B", "B-", "B+") ~ "B",
+    crse_grade_off %in% c("C", "C-", "C+") ~ "C",
+    crse_grade_off %in% c("D", "D-", "D+", "NC", "F") ~ "Did not Pass",
+    crse_grade_off %in% c("W", "WU", "I", "IC") ~ "W/WU",
+    crse_grade_off == "CR" ~ "CR"
+  )) |>
+  filter(
+    grade_group != "W/WU",
+    term_descr == "2024 Spring"
+  ) |>
+  filter(attempt_number == 1) |>
+  ggplot(aes(x = work_hours, y = fct_rev(grade_group))) +
+  geom_boxplot(aes(fill = grade_group),
+    alpha = 0.25
+  ) +
+  geom_point(aes(color = grade_group),
+    position = position_jitter(height = 0.1)
+  ) +
+  guides(
+    fill = "none",
+    color = "none"
+  ) +
+  scale_fill_viridis_d() +
+  scale_color_viridis_d() +
+  theme_light() +
+  labs(
+    x = "Average Reported Hours of Work Per Week for First-Time STAT 250 Students",
+    y = "Grade Group in STAT 250"
+  )
+```
+
+
+## Hard Truth: Preparation before reaching STAT 250 impacts student success  
+
+:::: {.columns}
+
+::: {.column width="40%"}
+
+::: {.r-fit-text}
+- Students with lower high school GPAs are less likely to pass STAT 250  
+- GPA does not necessarily measure ability; it is more often connected to study skill development 
+- Most likely students who do not pass STAT 250 may need to develop more robust **STUDY SKILLS**  
+:::
+
+:::
+
+::: {.column width="60%"}
+```{r}
+#| label: pass-rate-hsgpa-graph
+#| fig-align: center
+stat250_update |>
+  mutate(grade_group = case_when(
+    crse_grade_off %in% c("A", "A-", "A+") ~ "A",
+    crse_grade_off %in% c("B", "B-", "B+") ~ "B",
+    crse_grade_off %in% c("C", "C-", "C+") ~ "C",
+    crse_grade_off %in% c("D", "D-", "D+", "NC", "F") ~ "Did not Pass",
+    crse_grade_off %in% c("W", "WU", "I", "IC") ~ "W/WU",
+    crse_grade_off == "CR" ~ "CR"
+  )) |>
+  filter(csu_co_hs_gpa <= 5 & csu_co_hs_gpa > 0) |>
+  filter(grade_group != "W/WU") |>
+  filter(attempt_number == 1) |>
+  mutate(term_descr = fct_inorder(term_descr)) |>
+  ggplot(aes(x = csu_co_hs_gpa, y = fct_rev(grade_group))) +
+  geom_boxplot(aes(fill = grade_group),
+    alpha = 0.25
+  ) +
+  geom_point(aes(color = grade_group),
+    position = position_jitter(height = 0.1)
+  ) +
+  guides(
+    fill = "none",
+    color = "none"
+  ) +
+  scale_fill_viridis_d() +
+  scale_color_viridis_d() +
+  theme_light() +
+  labs(
+    x = "High School GPA for First-Time STAT 250 Students",
+    y = "Grade Group in STAT 250"
+  )
+```
+:::
+
+::::
+
+## How to Improve Your Study Skills 
+
+- [Supplemental Instruction at the CLC](https://csumb.edu/clc/)  
+- [Center for Student Success](https://csumb.edu/css/)  
+
+**_Remember, test taking ability is not a fixed characteristic._** Check out [these strategies](https://www.edumed.org/resources/test-taking-strategies/) for exam preparation.  
+
+
+## Hard Truth: How students seek help is as important as how often they seek help
+
+:::: {.columns}
+
+::: {.column width="40%"}
+
+::: {.r-fit-text}
+  
+- You might expect the "Rarely" group to have lower pass rates, but that group is made up students with more preparation who may not need frequent help.  
+- Students with less preparation and/or with less-developed study skills benefit more from regular help than occasional.  
+:::
+
+:::
+
+::: {.column width="60%"}
+```{r}
+#| label: pass-rate-help-graph
+#| fig-align: center
+#| fig-height: 8
+stat250_update |>
+  mutate(grade_group = case_when(
+    crse_grade_off %in% c("A", "A-", "A+") ~ "Pass A/B",
+    crse_grade_off %in% c("B", "B-", "B+", "CR") ~ "Pass A/B",
+    crse_grade_off %in% c("C", "C-", "C+") ~ "Pass C",
+    crse_grade_off %in% c("D", "D-", "D+", "NC", "F") ~ "Did not Pass",
+    crse_grade_off %in% c("W", "WU", "I", "IC") ~ "W/WU"
+  )) |>
+  filter(grade_group != "W/WU") |>
+  filter(attempt_number == 1) |>
+  mutate(term_descr = fct_inorder(term_descr)) |>
+  mutate(help_attend_cafe = factor(help_attend_cafe, levels = c(
+    "Never", "Once or twice",
+    "Several times", "Regularly, about once per week",
+    "More than once per week"
+  ))) |>
+  mutate(grade_group = factor(grade_group, levels = c("Did not Pass", "Pass C", "Pass A/B"))) |>
+  mutate(help_attend_clc_dropin_num = parse_number(help_attend_clc_dropin),
+         help_attend_clc_si_num = parse_number(help_attend_clc_si),
+         help_attend_prof_office_num = parse_number(help_attend_prof_office),
+         help_attend_study_group_num = parse_number(help_attend_study_group)) |> 
+  rowwise() |> 
+  mutate(avg_weekly_help_total = sum(c(help_attend_clc_dropin_num,
+                                     help_attend_clc_si_num,
+                                     help_attend_prof_office_num),
+                                     na.rm = TRUE)) |> 
+  mutate(help_frequency = case_when(avg_weekly_help_total == 0 & 
+                                      help_attend_cafe %in% c("Never", "Once or twice") ~ "Rarely",
+                                    avg_weekly_help_total >= 2 | 
+                                      help_attend_cafe %in% c("Regularly, about once per week", 
+                                                              "More than once per week") ~ "Regularly",
+                                    TRUE ~ "Occasionally")) |> 
+  # mutate(help_frequency = case_when(
+  #   help_attend_cafe %in% c("Never", "Once or twice") &
+  #     help_attend_clc_dropin %in% c("0") &
+  #     help_attend_clc_si %in% c("0") &
+  #     help_attend_prof_office %in% c("0") &
+  #     help_attend_study_group %in% c("0") ~ "Rarely",
+  #   help_attend_cafe %in% c("More than once per week"
+  #   ) |
+  #     help_attend_clc_dropin %in% c("2", "3", "4", "5 or more times") |
+  #     help_attend_clc_si %in% c("2", "3", "4", "5 or more times") |
+  #     help_attend_prof_office %in% c("2", "3", "4", "5 or more times") |
+  #     help_attend_study_group %in% c("2", "3", "4", "5 or more times") ~ "Very Frequently",
+  #   is.na(help_attend_cafe) &
+  #     is.na(help_attend_clc_dropin) &
+  #     is.na(help_attend_clc_si) &
+  #     is.na(help_attend_prof_office) &
+  #     is.na(help_attend_study_group) ~ "No Data",
+  #   TRUE ~ "Regularly"
+  # )) |>
+  mutate(help_frequency = factor(help_frequency, levels = c("No Data", "Rarely", "Occasionally", "Regularly"))) |>
+  mutate(prep_level = case_when(csu_app_mq_cat %in% c(1, 2) ~ "Prepared for College Math/Stat",
+                                csu_app_mq_cat %in% c(3, 4) ~ "Underprepared for College Math/Stat")) |> 
+  count(grade_group, help_frequency, prep_level) |>
+  group_by(help_frequency, prep_level) |>
+  mutate(
+    prop_cafe = n / sum(n),
+    group_total = sum(n)
+  ) |>
+  ungroup() |> 
+  filter(group_total >= 10) |> 
+  ggplot(aes(y = help_frequency, fill = grade_group)) +
+  geom_col(aes(x = prop_cafe)) +
+  facet_wrap(~prep_level, nrow = 2) +
+  # geom_text(aes(label = group_total, x = 0.1)) +
+  scale_fill_viridis_d() +
+  theme_light() +
+  theme(legend.position = "bottom") +
+  labs(
+    x = "Proportion of First-Time STAT 250 Students",
+    y = "Frequency of Seeking Help",
+    caption = "Help includes CLC, Office Hours, and Cafes \n Groups less than 10 excluded",
+    fill = "STAT 250 Grade Group"
+  )
+```
+
+:::
+
+::::
+
+
+## Hard Truth: How students seek help is as important as how often they seek help
+
+::: {.r-fit-text}
+Regularly seeking help (e.g. attending cafe weekly, CLC/Office Hours weekly, study groups) may improve the grades STAT 250 students, but it does not guarantee a passing grade. Why?    
+
+- Students who seek regular help, but do not pass, are often working with other students in ways that do not support their learning  
+    - Partnerships where one person does the majority of the work  
+    - Partnerships where one person does not explain "why" something should be done one way or another  
+    - Partnerships where one person does not ask questions when they are confused  
+    - Partnerships where one person does not consider the confusion of others  
+- Students also may frequently attend CLC Sessions Drop-Ins or Cafes, but do not ask questions or prepare in advance  
+
+:::
+
+
+## What can you do to be successful?  
+
+- Don't wait to get help, start early and often  
+- Evaluate your study habits, you can become a good test taker  
+- Research [how people learn](https://mcgraw.princeton.edu/undergraduates/resources/resource-library/how-people-learn)  
+- Practice [Mindfulness](https://www.mayoclinic.org/healthy-lifestyle/consumer-health/in-depth/mindfulness-exercises/art-20046356) to help with anxiety  
+- Trust that we want your success  
